@@ -28,3 +28,18 @@ class CourseResponse(BaseModel):
     category: str
     class Config:
         orm_mode = True
+
+class ProgressCreate(BaseModel):
+    user_id: int
+    course_id: int
+    completion_percentage: float = 0.0
+    status: str = "Not Started"
+
+class ProgressResponse(BaseModel):
+    id: int
+    user_id: int
+    course_id: int
+    completion_percentage: float
+    status: str
+    class Config:
+        orm_mode = True

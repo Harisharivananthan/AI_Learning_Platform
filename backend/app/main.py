@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from . import models, schemas, database, utils, auth
+from . import recommender
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -41,6 +42,35 @@ def create_course(course: schemas.CourseCreate, db: Session = Depends(get_db)):
     db.refresh(new_course)
     return new_course
 
+@app.get("/recommend/{user_id}", response_model=list[schemas.CourseResponse])
+def recommend_courses(user_id: int, db: Session = Depends(get_db)):
+    courses = recommender.recommend_courses_for_user(user_id, db)
+    return courses
+
 @app.get("/courses/", response_model=list[schemas.CourseResponse])
 def get_courses(db: Session = Depends(get_db)):
     return db.query(models.Course).all()
+
+@app.post("/progress/", response_model=schemas.ProgressResponse)
+def create_progress(progress: schemas.ProgressCreate, db: Session = Depends(get_db)):
+    new_progress = models.Progress(**progress.dict())
+    db.add(new_progress)
+    db.commit()
+    db.refresh(new_progress)
+    return new_progress
+
+@app.get("/progress/user/{user_id}", response_model=list[schemas.ProgressResponse])
+def get_user_progress(user_id: int, db: Session = Depends(get_db)):
+    return db.query(models.Progress).filter(models.Progress.user_id == user_id).all()
+
+@app.put("/progress/{progress_id}", response_model=schemas.ProgressResponse)
+def update_progress(progress_id: int, updated: schemas.ProgressCreate, db: Session = Depends(get_db)):
+    progress = db.query(models.Progress).filter(models.Progress.id == progress_id).first()
+    if not progress:
+        raise HTTPException(status_code=404, detail="Progress record not found")
+
+    progress.completion_percentage = updated.completion_percentage
+    progress.status = updated.status
+    db.commit()
+    db.refresh(progress)
+    return progress
